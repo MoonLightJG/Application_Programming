@@ -1,0 +1,91 @@
+#include <Arduino.h>
+
+typedef enum{
+  prc1_1 = 1,
+  prc1_2 = 2,
+  prc1_3 = 3,
+
+  prc2_1 = 4,
+  prc2_2 = 5,
+  prc2_3 = 6,
+
+  prc3_1 = 7,
+  prc3_2 = 8,
+  prc3_3 = 9,
+
+  LED1 = 12,
+  LED2 = 11,
+  LED3 = 10
+};
+
+int processNum = 0;
+int ledNum = 2;
+
+void interrupt21(){
+  if (!digitalRead(LED1)) processNum = prc1_1;
+  if ( digitalRead(LED1)){
+    if (digitalRead(LED2) | digitalRead(LED3)) processNum = prc1_3;
+    else processNum = prc1_2;
+  }
+}
+
+void interrupt20(){
+  if (digitalRead(LED1) & !digitalRead(LED2)) processNum = prc2_1;
+  if (digitalRead(LED2)){
+    processNum = (processNum == prc2_1) ? prc2_2 : (processNum == prc2_2) ? prc2_3 : prc2_1;
+    if(ledNum % 2 == 1) ledNum++;
+  }
+    
+}
+
+void interrupt19(){
+  ledNum = 9;
+  if (digitalRead(LED1) & !digitalRead(LED3)) processNum = prc3_1;
+  if (digitalRead(LED3)){
+    processNum = (processNum == prc3_1) ? prc3_2 : (processNum == prc3_2) ? prc3_3 : prc3_1;
+    if (!(ledNum % 2 == 1)) ledNum--;
+  }
+    
+}
+
+void Led_shift(int addNum, int delayNum, int process)
+{
+  digitalWrite(LED1, HIGH);
+  digitalWrite(LED2, (process < prc3_1) ? HIGH : LOW );
+  digitalWrite(LED3, (process < prc3_1) ? LOW  : HIGH);
+  digitalWrite(ledNum, HIGH);
+  delay(delayNum);
+  digitalWrite(ledNum, LOW);
+  ledNum = (process < prc3_1) ? ledNum + addNum : ledNum - addNum;
+  if (ledNum > 9) ledNum = 2;
+  if (ledNum < 2) ledNum = 9;
+}
+
+void setup(){
+  for (int i = 2; i <= 12; i++) pinMode(i, OUTPUT);
+  for (int i = 2; i <= 12; i++) digitalWrite(i, LOW);
+  attachInterrupt(digitalPinToInterrupt(21), interrupt21, RISING);
+  attachInterrupt(digitalPinToInterrupt(20), interrupt20, RISING);
+  attachInterrupt(digitalPinToInterrupt(19), interrupt19, RISING);
+}
+
+void loop()
+{
+  switch (processNum){
+  case prc1_1: digitalWrite(12, HIGH); break;
+  case prc1_2:{
+    for (int i = 2; i <= 12; i++) digitalWrite(i, LOW);
+  } break;
+  case prc1_3:{
+    for (int i = 2; i < 12; i++) digitalWrite(i, LOW);
+  } break;
+
+  case prc2_1: Led_shift(1, 300, prc2_1); break;
+  case prc2_2: Led_shift(2, 300, prc2_2); break;
+  case prc2_3: Led_shift(2, 300, prc2_3); break;
+
+  case prc3_1: Led_shift(1, 300, prc3_1); break;
+  case prc3_2: Led_shift(2, 300, prc3_2); break;
+  case prc3_3: Led_shift(2, 300, prc3_3); break;
+  }
+}
